@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robots.txt Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input[type="text"], select, textarea {
+            width: 100%;
+            margin-top: 5px;
+            padding: 10px;
+            box-sizing: border-box;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #007BFF;
+            color: #fff;
+            text-align: center;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .advanced-options {
+            margin-top: 20px;
+            display: none;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .bot-block {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .bot-block label {
+            margin-top: 5px;
+        }
+        .remove-btn {
+            background-color: #dc3545;
+            color: #fff;
+            padding: 5px 10px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .remove-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Robots.txt Generator</h1>
+
+        <h2>Basic Settings</h2>
+        <label for="globalDisallow">Global Disallow (comma-separated paths to block all bots):</label>
+        <input type="text" id="globalDisallow" placeholder="/private/, /tmp/" oninput="updateRobotsTxt()">
+
+        <label for="globalAllow">Global Allow (comma-separated paths to allow all bots):</label>
+        <input type="text" id="globalAllow" placeholder="/public/" oninput="updateRobotsTxt()">
+
+        <label for="sitemapUrl">Sitemap URL (optional):</label>
+        <input type="text" id="sitemapUrl" placeholder="http://example.com/sitemap.xml" oninput="updateRobotsTxt()">
+
+        <button class="btn" onclick="toggleAdvancedOptions()">Advanced Options</button>
+
+        <div id="advancedOptions" class="advanced-options">
+            <h2>Advanced Options</h2>
+            <div id="botsContainer"></div>
+            <button class="btn" onclick="addBot()">Add More Bot</button>
+        </div>
+
+        <h2>Generated robots.txt</h2>
+        <textarea id="output" readonly></textarea>
+
+        <button class="btn" onclick="downloadRobotsTxt()">Download robots.txt</button>
+    </div>
+
+    <script>
+        function toggleAdvancedOptions() {
+            const advancedOptions = document.getElementById('advancedOptions');
+            advancedOptions.style.display = advancedOptions.style.display === 'none' || advancedOptions.style.display === '' ? 'block' : 'none';
+        }
+
+        function addBot() {
+            const botBlock = document.createElement('div');
+            botBlock.className = 'bot-block';
+
+            const botSelect = document.createElement('select');
+            botSelect.innerHTML = `
+                <option value="Googlebot">Googlebot</option>
+                <option value="Bingbot">Bingbot</option>
+                <option value="Slurp">Yahoo Slurp</option>
+                <option value="DuckDuckBot">DuckDuckBot</option>
+                <option value="Baiduspider">Baiduspider</option>
+                <option value="YandexBot">YandexBot</option>
+            `;
+            botSelect.onchange = updateRobotsTxt;
+
+            const blockDirsLabel = document.createElement('label');
+            blockDirsLabel.innerText = 'Directories to Block (comma-separated paths):';
+            const blockDirsInput = document.createElement('input');
+            blockDirsInput.type = 'text';
+            blockDirsInput.oninput = updateRobotsTxt;
+
+            const allowDirsLabel = document.createElement('label');
+            allowDirsLabel.innerText = 'Directories to Allow (comma-separated paths):';
+            const allowDirsInput = document.createElement('input');
+            allowDirsInput.type = 'text';
+            allowDirsInput.oninput = updateRobotsTxt;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerText = 'Remove';
+            removeBtn.onclick = () => {
+                botBlock.remove();
+                updateRobotsTxt();
+            };
+
+            botBlock.appendChild(botSelect);
+            botBlock.appendChild(blockDirsLabel);
+            botBlock.appendChild(blockDirsInput);
+            botBlock.appendChild(allowDirsLabel);
+            botBlock.appendChild(allowDirsInput);
+            botBlock.appendChild(removeBtn);
+
+            document.getElementById('botsContainer').appendChild(botBlock);
+            updateRobotsTxt();
+        }
+
+        function updateRobotsTxt() {
+            let robotsTxt = '';
+
+            // General rules for all bots
+            robotsTxt += 'User-agent: *\n';
+            // Add disallow and allow rules for all bots
+            const blockDirs = document.getElementById('globalDisallow').value.split(',').map(dir => dir.trim()).filter(dir => dir);
+            const allowDirs = document.getElementById('globalAllow').value.split(',').map(dir => dir.trim()).filter(dir => dir);
+
+            blockDirs.forEach(dir => {
+                robotsTxt += `Disallow: ${dir}\n`;
+            });
+
+            allowDirs.forEach(dir => {
+                robotsTxt += `Allow: ${dir}\n`;
+            });
+
+            robotsTxt += '\n';
+
+            // Specific rules for each bot
+            const botBlocks = document.querySelectorAll('.bot-block');
+            botBlocks.forEach(block => {
+                const bot = block.querySelector('select').value;
+                const blockDirs = block.querySelector('input[type="text"]:first-of-type').value.split(',').map(dir => dir.trim()).filter(dir => dir);
+                const allowDirs = block.querySelector('input[type="text"]:last-of-type').value.split(',').map(dir => dir.trim()).filter(dir => dir);
+
+                robotsTxt += `User-agent: ${bot}\n`;
+
+                blockDirs.forEach(dir => {
+                    robotsTxt += `Disallow: ${dir}\n`;
+                });
+
+                allowDirs.forEach(dir => {
+                    robotsTxt += `Allow: ${dir}\n`;
+                });
+
+                robotsTxt += '\n';
+            });
+
+            // Sitemap URL (if provided)
+            const sitemapUrl = document.getElementById('sitemapUrl').value.trim();
+            if (sitemapUrl) {
+                robotsTxt += `Sitemap: ${sitemapUrl}\n`;
+            }
+
+            document.getElementById('output').value = robotsTxt.trim();
+        }
+
+        function downloadRobotsTxt() {
+            const robotsTxt = document.getElementById('output').value;
+            const blob = new Blob([robotsTxt], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'robots.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
